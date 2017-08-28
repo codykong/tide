@@ -15,5 +15,13 @@
         <module>tide-connector-kafka</module>
     </modules>
 
+    <dependencies>
+        <dependency>
+            <groupId>com.xten.tide</groupId>
+            <artifactId>tide-runtime</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+    </dependencies>
+
 
 </project>

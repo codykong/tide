@@ -10,9 +10,10 @@
     <version>1.0-SNAPSHOT</version>
     <modules>
         <module>tide-core</module>
-        <module>tide-streaming</module>
         <module>tide-connectors</module>
         <module>tide-examples</module>
+        <module>tide-runtime</module>
+        <module>tide-client</module>
     </modules>
 
     <description>潮汐、海流</description>
@@ -29,7 +30,8 @@
         <commons.lang.version>2.6</commons.lang.version>
         <drools.version>6.5.0.Final</drools.version>
         <kms.version>0.5.9-SNAPSHOT</kms.version>
-        <slf4j.api.version>1.7.5</slf4j.api.version>
+        <slf4j.api.version>1.7.25</slf4j.api.version>
+        <log4j.version>2.8.2</log4j.version>
         <mysql.connector.version>5.1.15</mysql.connector.version>
         <mybatis.scala.version>1.0.3</mybatis.scala.version>
         <scala.xml.version>1.0.6</scala.xml.version>
@@ -41,6 +43,61 @@
 
     <dependencyManagement>
         <dependencies>
+
+            <dependency>
+                <groupId>io.spray</groupId>
+                <artifactId>spray-json_2.12</artifactId>
+                <version>1.3.3</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.yaml</groupId>
+                <artifactId>snakeyaml</artifactId>
+                <version>1.18</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.apache.hadoop</groupId>
+                <artifactId>hadoop-common</artifactId>
+                <version>2.8.1</version>
+            </dependency>
+
+
+            <!--LOG start-->
+            <dependency>
+                <groupId>org.apache.logging.log4j</groupId>
+                <artifactId>log4j-api</artifactId>
+                <version>${log4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.logging.log4j</groupId>
+                <artifactId>log4j-core</artifactId>
+                <version>${log4j.version}</version>
+            </dependency>
+            <dependency> <!-- 桥接：告诉Slf4j使用Log4j2 -->
+                <groupId>org.apache.logging.log4j</groupId>
+                <artifactId>log4j-slf4j-impl</artifactId>
+                <version>${log4j.version}</version>
+            </dependency>
+            <dependency> <!-- 桥接：告诉commons logging使用Log4j2 -->
+                <groupId>org.apache.logging.log4j</groupId>
+                <artifactId>log4j-jcl</artifactId>
+                <version>${log4j.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-log4j12</artifactId>
+                <version>${slf4j.api.version}</version>
+            </dependency>
+
+            <!--LOG end-->
+
+            <dependency>
+                <groupId>junit</groupId>
+                <artifactId>junit</artifactId>
+                <version>4.12</version>
+            </dependency>
 
             <dependency>
                 <groupId>com.orbitz.consul</groupId>
@@ -123,6 +180,25 @@
 
             <!-- akka scala -->
             <dependency>
+                <groupId>com.github.scopt</groupId>
+                <artifactId>scopt_${scala.tools.version}</artifactId>
+                <version>3.6.0</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.typesafe.akka</groupId>
+                <artifactId>akka-http_${scala.tools.version}</artifactId>
+                <version>10.0.9</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.typesafe.akka</groupId>
+                <artifactId>akka-http-spray-json_${scala.tools.version}</artifactId>
+                <version>10.0.9</version>
+            </dependency>
+
+
+            <dependency>
                 <groupId>org.scala-lang</groupId>
                 <artifactId>scala-library</artifactId>
                 <version>${scala.version}</version>
@@ -176,6 +252,12 @@
             </dependency>
 
             <dependency>
+                <groupId>com.typesafe</groupId>
+                <artifactId>config</artifactId>
+                <version>1.2.1</version>
+            </dependency>
+
+            <dependency>
                 <groupId>org.scalatest</groupId>
                 <artifactId>scalatest_${scala.tools.version}</artifactId>
                 <version>3.0.1</version>
@@ -202,11 +284,14 @@
         <testSourceDirectory>src/test/scala</testSourceDirectory>
         <plugins>
 
+            <!-- 配置构建时忽略测试用例 -->
+
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>2.13</version>
+                <version>2.19.1</version>
                 <configuration>
+                    <skipTests>true</skipTests>
                     <useFile>false</useFile>
                     <disableXmlReport>true</disableXmlReport>
                     <!-- If you have classpath issue like NoDefClassError,... -->
