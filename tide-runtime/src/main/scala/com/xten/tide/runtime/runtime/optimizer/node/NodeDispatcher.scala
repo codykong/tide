@@ -3,7 +3,8 @@ package com.xten.tide.runtime.runtime.optimizer.node
 import com.xten.tide.runtime.runtime.messages.cluster.NodeMember
 import com.xten.tide.runtime.runtime.messages.resource.JobDispatch
 import com.xten.tide.runtime.runtime.resourcemanager.NodeMemberRuntime
-import com.xten.tide.runtime.runtime.resourcemanager.job.{JobResourceDesc}
+import com.xten.tide.runtime.runtime.resourcemanager.job.JobResourceDesc
+import com.xten.tide.runtime.util.NetUtils
 
 /**
   * Created with IntelliJ IDEA.
@@ -23,18 +24,15 @@ trait NodeDispatcher {
 
 
   def newPort(node : NodeMember) : Int = {
-    // todo mock 实现
-    var newPort = 0
-    if (node.usedPorts.size == 0) {
-      newPort= 2660
-    }else {
-      newPort = node.usedPorts(node.usedPorts.size-1)
+
+    for (i <- 2600 to 65536){
+
+      if (!node.usedPorts.contains(i) && NetUtils.isIdlePort(node.ip,i)){
+        node.usedPorts += i
+        return  i
+      }
     }
-
-    node.usedPorts += newPort
-
-    newPort
-
+    throw new RuntimeException("can not find a idlePort")
   }
 
 }

@@ -26,12 +26,12 @@ class ResourceRegister() extends Actor{
   override def receive: Receive = {
     case action:NodeMemberUpAction => {
       val sender = context.sender()
-      nodes.put(action.nodeMember.name,action.nodeMember)
+      nodes.put(action.nodeMember.id,action.nodeMember)
       sender ! ActionRes.defaultSuccess()
 
     }
     case action:NodeMemberRemoveAction => {
-      nodes.remove(action.nodeMember.name)
+      nodes.remove(action.nodeMember.id)
     }
     case AllLiveNodesRequest => {
       val sender = context.sender()

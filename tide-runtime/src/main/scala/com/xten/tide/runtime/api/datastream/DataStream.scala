@@ -6,7 +6,7 @@ import com.xten.tide.runtime.api.functions.MapFunction
 import com.xten.tide.runtime.api.functions.sink.{PrintSinkFunction, SinkFunction}
 import com.xten.tide.runtime.api.operators.{AbstractOperator, MapOperator, Operator, SinkOperator}
 import com.xten.tide.runtime.api.transformations.{OneInputTransformation, SinkTransformation, Transformation}
-import com.xten.tide.runtime.util.Preconditions
+import com.xten.tide.utils.Preconditions
 
 /**
   * Created with IntelliJ IDEA. 

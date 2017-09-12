@@ -8,3 +8,7 @@ package com.xten.tide.client.program
 class ProgramParametrizationException(message: String) extends RuntimeException(message){
 
 }
+
+class ProgramAbortException() extends RuntimeException(){
+
+}

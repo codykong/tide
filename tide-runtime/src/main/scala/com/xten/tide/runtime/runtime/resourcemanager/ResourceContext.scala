@@ -10,6 +10,8 @@ import com.xten.tide.configuration.Configuration
 class ResourceContext(config : Configuration) {
 
   private var appManagerPath : String = _
+
+  def getAppManagerPath = appManagerPath
 }
 
 object ResourceContext{

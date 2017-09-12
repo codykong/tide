@@ -3,7 +3,7 @@ package com.xten.tide.runtime.runtime.minicluster
 import akka.actor.{ActorRef, ActorSystem}
 import com.typesafe.config.Config
 import com.xten.tide.configuration.{ConfigConstants, Configuration}
-import com.xten.tide.runtime.api.graph.StreamGraph
+import com.xten.tide.runtime.api.graph.{ExecutionGraph, StreamGraph}
 import com.xten.tide.runtime.runtime.akka.{AkkaUtils, TimeoutConstant}
 import com.xten.tide.runtime.runtime.messages.app.AppUpAction
 import com.xten.tide.runtime.util.AddressUtil
@@ -23,10 +23,10 @@ abstract class MiniCluster(val userConfiguration:Configuration) {
   var appMasterActor : ActorRef = null
 
 
-  def start()= {
+  def start(executionGraph: ExecutionGraph)= {
 
     appMasterActorSystem = startAppMasterActorSystem()
-    appMasterActor = startAppMaster(appMasterActorSystem)
+    appMasterActor = startAppMaster(appMasterActorSystem,executionGraph)
 
   }
 
@@ -75,12 +75,12 @@ abstract class MiniCluster(val userConfiguration:Configuration) {
   }
 
 
-  def startAppMaster(system: ActorSystem): ActorRef
+  def startAppMaster(system: ActorSystem,executionGraph: ExecutionGraph): ActorRef
 
-  def submitApp(streamGraph: StreamGraph) = {
+  def submitApp(executionGraph: ExecutionGraph) = {
 
     implicit val timeout = TimeoutConstant.SYSTEM_MSG_TIMEOUT
-    appMasterActor ! AppUpAction(streamGraph)
+    appMasterActor ! AppUpAction(executionGraph)
 
   }
 

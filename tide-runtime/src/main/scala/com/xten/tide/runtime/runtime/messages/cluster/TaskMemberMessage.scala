@@ -1,7 +1,5 @@
 package com.xten.tide.runtime.runtime.messages.cluster
 
-import akka.dispatch.ControlMessage
-import com.xten.tide.runtime.runtime.jobgraph.Task
 import com.xten.tide.runtime.runtime.messages.{ActionMessage, NoticeMessage, TideMessage}
 
 /**
@@ -13,23 +11,23 @@ import com.xten.tide.runtime.runtime.messages.{ActionMessage, NoticeMessage, Tid
 /**
   * 该Actor已经启动
   */
-case class MemberUpped(member : TaskMember) extends NoticeMessage
+case class TaskMemberUpped(member : TaskMember) extends NoticeMessage
 
 /**
   * 该Action已经被移除
   */
-case class MemberRemoved(member : TaskMember) extends NoticeMessage
+case class TaskMemberRemoved(member : TaskMember) extends NoticeMessage
 
 /**
   * 启动Actor
   */
-case class MemberUpAction(tasks: List[Task]) extends ActionMessage
+case class TaskMemberUpAction(tasks: List[Task]) extends ActionMessage
 
 /**
   * 移除Actor
   * @param task
   */
-case class MemberRemoveAction(task: Task) extends ActionMessage
+case class TaskMemberRemoveAction(task: Task) extends ActionMessage
 
 /**
   * 组件全量的下游信息

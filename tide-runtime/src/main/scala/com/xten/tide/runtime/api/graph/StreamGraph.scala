@@ -3,9 +3,10 @@ package com.xten.tide.runtime.api.graph
 import java.util.UUID
 
 import com.xten.tide.api.common.ExecutionConfig
+import com.xten.tide.configuration.ConfigConstants
+import com.xten.tide.optimizer.plan.TidePlan
 import com.xten.tide.runtime.api.environment.ExecutionEnvironment
 import com.xten.tide.runtime.api.transformations.{OneInputTransformation, SinkTransformation, SourceTransformation, Transformation}
-import com.xten.tide.runtime.runtime.jobgraph.JobGraph
 import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
@@ -15,7 +16,7 @@ import scala.collection.mutable
   * User: kongqingyu
   * Date: 2017/5/16 
   */
-class StreamGraph(environment : ExecutionEnvironment,val parallelism :Int) extends Serializable{
+class StreamGraph(environment : ExecutionEnvironment,val parallelism :Int) extends TidePlan with Serializable{
 
   val jobId = UUID.randomUUID().toString
 
@@ -45,6 +46,20 @@ class StreamGraph(environment : ExecutionEnvironment,val parallelism :Int) exten
   def getJobName = this.jobName
 
   def getExecutionConfig = this.executionConfig
+
+
+  def toExecutionGraph():ExecutionGraph = {
+    val executionNodes = this.streamNodes.map(p => p._2.getExecutionNode()).toList
+
+    val configuration = this.executionConfig.toConfiguration()
+    configuration.setInt(ConfigConstants.EXECUTION_PARALLELISM_KEY,parallelism)
+
+    val executionGraph = new ExecutionGraph(this.jobId,
+      this.jobName,configuration,executionNodes)
+
+    executionGraph
+
+  }
 
 
 

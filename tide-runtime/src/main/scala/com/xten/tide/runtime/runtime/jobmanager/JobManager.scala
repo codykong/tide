@@ -7,7 +7,6 @@ import com.xten.tide.runtime.api.functions.MapFunction
 import com.xten.tide.runtime.api.functions.source.SourceFunction
 import com.xten.tide.runtime.runtime.akka.AkkaUtils
 import com.xten.tide.runtime.runtime.component.{ComponentContext, MapComponent, SourceComponent}
-import com.xten.tide.runtime.runtime.jobgraph.Task
 import com.xten.tide.runtime.runtime.messages.cluster._
 import org.slf4j.LoggerFactory
 
@@ -20,29 +19,41 @@ import scala.collection.mutable
   */
 class JobManager(jobManagerContext: JobManagerContext) extends Actor() {
 
-  val Logger = LoggerFactory.getLogger(this.getClass)
+  val LOG = LoggerFactory.getLogger(this.getClass)
+  var userClassLoader : ClassLoader = null
+  var appMasterActorRef : ActorRef = null
 
   var sons :mutable.Map[String,ActorRef] = new mutable.HashMap[String,ActorRef]()
 
+  override def preStart(): Unit = {
+    super.preStart()
+    userClassLoader = Thread.currentThread().getContextClassLoader
+    appMasterActorRef = AkkaUtils.pathToActorRef(jobManagerContext.appMasterPath)
+    appMasterActorRef ! NodeMemberUpAction
+    jobManagerContext.tasks.map(p => startComponent(p))
+
+  }
+
   override def receive: Receive = {
-    case action: MemberUpAction => {
+    case action: TaskMemberUpAction => {
+      LOG.info(s"JobManager currentThread is ${Thread.currentThread().getContextClassLoader}")
       for(task <- action.tasks){
         startComponent(task)
       }
     }
-    case action : MemberRemoveAction => {
+    case action : TaskMemberRemoveAction => {
       if (sons.get(action.task.taskId).isDefined){
         sons.get(action.task.taskId).get ! PoisonPill
       }
     }
-    case member : MemberUpped => {
-      Logger.info(s"MemberUpped is ${member.member}")
+    case member : TaskMemberUpped => {
+      LOG.info(s"MemberUpped is ${member.member}")
       val appMasterPathSelection = context.system.actorSelection(jobManagerContext.appMasterPath)
 
       appMasterPathSelection ! member
     }
-    case member : MemberRemoved => {
-      Logger.info(s"MemberRemoved is ${member.member}")
+    case member : TaskMemberRemoved => {
+      LOG.info(s"MemberRemoved is ${member.member}")
     }
 
   }
@@ -52,7 +63,9 @@ class JobManager(jobManagerContext: JobManagerContext) extends Actor() {
     * @param task
     */
   private def startComponent(task:Task): Unit ={
-    val function = task.jobVertexClass.newInstance()
+
+    Class.forName(task.className, true,userClassLoader)
+    val function = Class.forName(task.className,true,Thread.currentThread().getContextClassLoader).newInstance()
 
 
     function match {
@@ -69,7 +82,7 @@ class JobManager(jobManagerContext: JobManagerContext) extends Actor() {
 
       }
       case any :Any => {
-        println(any)
+        LOG.info(s"Function is ${any}")
     }
 //      case sourceFunction: SourceFunction => {
 //        val context = TaskContext[BaseFunction](sourceFunction, componentNode.executionConfig,componentNode.receivers)

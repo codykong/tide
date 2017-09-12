@@ -1,6 +1,6 @@
 package com.xten.tide.runtime.runtime.messages.app
 
-import com.xten.tide.runtime.api.graph.{StreamGraph}
+import com.xten.tide.runtime.api.graph.{ExecutionGraph}
 import com.xten.tide.runtime.runtime.messages.ActionMessage
 
 import scala.collection.mutable
@@ -12,7 +12,7 @@ import scala.collection.mutable
   */
 
 
-case class AppUpAction(streamGraph: StreamGraph) extends ActionMessage
+case class AppUpAction(executionGraph: ExecutionGraph) extends ActionMessage
 
 case class AppReadyAction() extends ActionMessage
 

@@ -1,8 +1,7 @@
 package com.xten.tide.runtime.runtime.optimizer
 
 import com.xten.tide.configuration.Configuration
-import com.xten.tide.runtime.runtime.appmaster.JobGraph
-import com.xten.tide.runtime.runtime.jobgraph.Task
+import com.xten.tide.runtime.runtime.appmaster._
 import com.xten.tide.runtime.runtime.messages.app.AppUpAction
 import org.slf4j.LoggerFactory
 
@@ -17,26 +16,25 @@ object BalanceAppOptimizer extends AppOptimizer{
 
   private val LOG = LoggerFactory.getLogger(BalanceAppOptimizer.getClass)
 
-  override def appUp(appUpAction: AppUpAction): List[JobGraph] = {
+  override def appUp(appRuntime: AppRuntime): List[JobRuntime] = {
 
-    val taskNum = appUpAction.streamGraph.parallelism
+    val jobNum = appRuntime.getParallelism()
 
     // 初始化每个task实例
-    val jobGraphs = new mutable.HashMap[Int,JobGraph]
-    for (i <- 0 until taskNum){
-      jobGraphs.put(i,JobGraph(Configuration()))
+    val jobRuntimeMap = new mutable.HashMap[Int,JobRuntime]
+    for (i <- 0 until jobNum){
+      jobRuntimeMap.put(i,JobRuntime(appRuntime.executionConfig))
     }
 
     var offset = 0
-    appUpAction.streamGraph.streamNodes
-      .flatMap(p => Task.transformTask(p._2))
-      .foreach(p => {
-        jobGraphs.get(offset % taskNum).get.addTask(p)
-        appUpAction.streamGraph.streamNodes.get(p.streamNodeId).get.addTask(p)
-        offset += 1
-      })
 
-    jobGraphs.values.toList
+    appRuntime.operatorRuntimes.flatMap(p => TaskRuntime.transformTask(p._2)).foreach(p => {
+      jobRuntimeMap.get(offset % jobNum).get.addTask(p)
+      appRuntime.operatorRuntimes.get(p.operatorId).get.addTask(p)
+      offset += 1
+    })
+
+    jobRuntimeMap.values.toList
 
   }
 

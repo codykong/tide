@@ -2,16 +2,14 @@ package com.xten.tide.runtime.runtime.appmaster
 
 import java.util.UUID
 
-import akka.actor.{Actor, ActorContext, ActorSelection, ActorSystem, Props}
+import akka.actor.{Actor, ActorContext, ActorRef, ActorSelection, ActorSystem, Props}
 import com.xten.tide.configuration.{ConfigConstants, Configuration}
 import com.xten.tide.runtime.runtime.akka.{AkkaUtils, TimeoutConstant}
 import com.xten.tide.runtime.runtime.optimizer.BalanceAppOptimizer
 import akka.pattern.ask
-import com.xten.tide.runtime.api.graph.StreamGraph
-import com.xten.tide.runtime.runtime.jobgraph.Task
+import com.xten.tide.runtime.api.graph.{ExecutionGraph, ExecutionNode, StreamGraph}
 import com.xten.tide.runtime.runtime.messages.app.AppUpAction
-import com.xten.tide.runtime.runtime.messages.cluster.{MemberStatus, MemberUpped, NodeResource, ReceiverChangeAction}
-import com.xten.tide.runtime.runtime.messages.job.{JobUpAction, JobUpped}
+import com.xten.tide.runtime.runtime.messages.cluster._
 import com.xten.tide.runtime.runtime.messages.resource.{JobDispatchResponse, JobUpDispatchRequest}
 import com.xten.tide.runtime.runtime.resourcemanager.job.JobResourceDesc
 import org.slf4j.LoggerFactory
@@ -30,79 +28,86 @@ import scala.concurrent.ExecutionContext.Implicits.global
   */
 class AppMaster(appMasterContext: AppMasterContext) extends Actor{
 
-  val LOG = LoggerFactory.getLogger(classOf[AppMaster])
+  private val LOG = LoggerFactory.getLogger(classOf[AppMaster])
 
   val resourceMangerSelection = AkkaUtils.pathToSelection(appMasterContext.resourceManger)
 
-  val jobGraphStore : mutable.HashMap[String,JobGraph] = new mutable.HashMap[String,JobGraph]()
+  val jobRuntimes : mutable.HashMap[String,JobRuntime] = new mutable.HashMap[String,JobRuntime]()
 
-  var streamGraph : StreamGraph = _
+  var appRuntime : AppRuntime = _
 
   var appStatus :MemberStatus = MemberStatus.Init
 
+  override def preStart(): Unit = {
+    super.preStart()
+    LOG.info(s"AppMaster start ,id is ${appMasterContext.executionGraph.appId}")
+    appUp(appMasterContext.executionGraph)
+
+  }
+
   override def receive: Receive = {
-    case action :AppUpAction => {
-      streamGraph = action.streamGraph
-
-      val jobGraphs  =  BalanceAppOptimizer.appUp(action)
-
-      val jobResources = jobGraphs.map(p => new JobResourceDesc(p.jobId))
-      implicit val timeout = TimeoutConstant.SYSTEM_MSG_TIMEOUT
-      val responseFuture = resourceMangerSelection ? JobUpDispatchRequest(jobResources)
-
-      val dispatches = Await.result(responseFuture, TimeoutConstant.SYSTEM_MSG_DURATION)
-        .asInstanceOf[JobDispatchResponse].jobDispatches
-        .map(p => (p.jobResource.jobId,p.nodeResource)).toMap
-
-      jobGraphs.map(p => {
-        p.nodeResource = dispatches.get(p.jobId).get
-        jobGraphStore.put(p.jobId,p)
-        (p.nodeResource,p.toJobUpAction(AkkaUtils.remotePath()))
-      }).map( p => {
-        LOG.info(s"taskUpActions is ${p._2}")
-
-        val future = AkkaUtils.pathToSelection(p._1.path) ? p._2
-        future.onComplete{
-          case  member: Success[JobUpped]=> {
-            jobGraphStore.get(member.value.jobId).get.setJobManagerSelection(member.value.path)
-          }
-          case Failure(failure) => {
-            LOG.error(s"taskUpActions error,task is ${p._2},error is ${failure}")
-          }
-        }
-      })
-
-    }
-    case member: MemberUpped => {
+    case member: TaskMemberUpped => {
       // 组件启动成功
-      val task = jobGraphStore.get(member.member.jobName).get.taskMap.get(member.member.taskId).get
+      val task = jobRuntimes.get(member.member.jobName).get.taskMap.get(member.member.taskId).get
       task.up(member.member.path)
       syncReceiverMap(task)
-      streamGraph.streamNodes.get(task.streamNodeId).get.getInNodes()
-        .foreach(p =>{
-          // 获取所有发送给该task的StreamNode
-          streamGraph.streamNodes.get(p).get.getTasks().foreach(inTask => {
+
+      appRuntime.operatorRuntimes.get(task.operatorId).get.getInOperatorIds
+        .foreach(p => {
+          // 获取所有发送给该task的Operator
+          appRuntime.operatorRuntimes.get(p).get.getTaskRuntimes.foreach(inTask => {
             // 修改该StreamNode 的下的所有task的下游组件map
             val receiverPaths = inTask.receiverMap.get(task.taskId).getOrElse(ListBuffer.empty[String])
+
             if (!receiverPaths.contains(member.member.path)){
               receiverPaths += member.member.path
               // 如果该下游组件运行中，则同步路由
-              inTask.receiverMap.put(task.streamNodeId,receiverPaths)
+              inTask.receiverMap.put(task.operatorId,receiverPaths)
               syncReceiverMap(inTask)
 
             }
           })
         })
-//      jobGraphStore.values.flatMap(p => p.taskMap.values)
-//        .filter(p => p.receivers.contains(member.member.taskId))
-//        .map(p => {
-//          val changed = p.receiverUp(member.member.taskId,member.member.path)
-//          if (changed && p.memberStatus.equals(MemberStatus.Up)){
-//            val receivers = p.receiverMap.map(p => (p._1,p._2.toList)).toMap
-//
-//          }
-//        })
+
     }
+  }
+
+  /**
+    * 启动app
+    * @param executionGraph
+    * @return
+    */
+  private def appUp(executionGraph: ExecutionGraph) = {
+    appRuntime = AppRuntime(executionGraph)
+
+    val jobRuntime  =  BalanceAppOptimizer.appUp(appRuntime)
+
+    val jobResources = jobRuntime.map(p => new JobResourceDesc(p.jobId))
+    implicit val timeout = TimeoutConstant.SYSTEM_MSG_TIMEOUT
+    val responseFuture = resourceMangerSelection ? JobUpDispatchRequest(jobResources)
+
+    val dispatches = Await.result(responseFuture, TimeoutConstant.SYSTEM_MSG_DURATION)
+      .asInstanceOf[JobDispatchResponse].jobDispatches
+      .map(p => (p.jobResource.jobId,p.nodeResource)).toMap
+
+    jobRuntime.map(p => {
+      p.setUserJars(executionGraph.getUserJars())
+      p.nodeResource = dispatches.get(p.jobId).get
+      jobRuntimes.put(p.jobId,p)
+      (p.nodeResource,p.toJobUpAction(AkkaUtils.remotePath()))
+    }).map( p => {
+      LOG.info(s"taskUpActions is ${p._2}")
+
+      val future = AkkaUtils.pathToSelection(p._1.path) ? p._2
+      future.onComplete{
+        case  member: Success[JobUpped]=> {
+          jobRuntimes.get(member.value.jobId).get.setJobManagerSelection(member.value.path)
+        }
+        case Failure(failure) => {
+          LOG.error(s"taskUpActions error,task is ${p._2},error is ${failure}")
+        }
+      }
+    })
   }
 
 
@@ -110,7 +115,7 @@ class AppMaster(appMasterContext: AppMasterContext) extends Actor{
     * 同步task下的下游
     * @param task
     */
-  private def syncReceiverMap(task : Task) ={
+  private def syncReceiverMap(task : TaskRuntime) ={
 
     if (task.memberStatus.equals(MemberStatus.Up) && !task.receiverMap.isEmpty){
       val receiverMap = task.receiverMap.map(p => (p._1,p._2.toList)).toMap
@@ -151,78 +156,13 @@ class AppMaster(appMasterContext: AppMasterContext) extends Actor{
 object AppMaster {
   val DEFAULT_APP_MASTER_NAME = "appMaster"
 
-  def runAppMaster(config: Configuration,resourceMangerPath : String,system: ActorSystem) = {
+  def runAppMaster(config: Configuration,resourceMangerPath : String,system: ActorSystem,executionGraph: ExecutionGraph)
+    : ActorRef = {
 
-    val appMasterContext: AppMasterContext = AppMasterContext(config,resourceMangerPath)
+    val appMasterContext: AppMasterContext = AppMasterContext(config,resourceMangerPath,executionGraph)
     system.actorOf(Props.create(classOf[AppMaster], appMasterContext), DEFAULT_APP_MASTER_NAME)
 
   }
-
-}
-
-class JobGraph(var taskMap : mutable.HashMap[String,Task],configuration:Configuration){
-  var jobId = UUID.randomUUID().toString
-  var nodeResource :NodeResource = _
-  var readyNum = 0
-  var taskManagerSelection : ActorSelection = _
-
-  def setJobManagerSelection(path :String)(implicit context:ActorContext) = {
-    taskManagerSelection = context.actorSelection(path)
-
-  }
-
-  def addTask(task: Task) = {
-    taskMap.put(task.taskId,task)
-  }
-
-  def toJobUpAction(path:String) :JobUpAction = {
-
-    configuration.setString(ConfigConstants.TASK_IPC_ADDRESS_KEY , nodeResource.ip)
-    configuration.setInt(ConfigConstants.TASK_IPC_PORT_KEY , nodeResource.port)
-
-    val tasks = taskMap.values.toList
-    JobUpAction(jobId,path,tasks,configuration)
-  }
-
-  private def updateReadyNum() = {
-    readyNum = taskMap.values.filter(p => !p.memberStatus.equals(MemberStatus.Up)).size
-  }
-}
-
-object JobGraph{
-
-
-  def apply(tasks: ListBuffer[Task], configuration: Configuration): JobGraph ={
-    val taskMap  = new  mutable.HashMap[String,Task]
-    tasks.map( p => {
-      taskMap.put(p.taskId,p)
-    })
-
-    new JobGraph(taskMap,configuration)
-
-  }
-
-  def apply(configuration: Configuration): JobGraph ={
-    new JobGraph(new  mutable.HashMap[String,Task],configuration)
-
-  }
-
-}
-
-class AppGraph{
-
-
-}
-
-
-class ComponentRuntime(val componentNode: Task){
-
-
-  var path : String = _
-  var memberStatus : MemberStatus = MemberStatus.Init
-  var receiverMap = new mutable.HashMap[String,ListBuffer[String]]()
-
-
 
 }
 

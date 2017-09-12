@@ -224,6 +224,11 @@ class Configuration(private final val configData : mutable.HashMap[String,Any]) 
       ""
     }
   }
+
+
+  def add(key : String ,value : Any): Unit = {
+    this.configData.put(key,value)
+  }
 }
 
 object Configuration{

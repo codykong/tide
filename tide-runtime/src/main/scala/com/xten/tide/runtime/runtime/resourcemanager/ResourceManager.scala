@@ -5,13 +5,15 @@ import com.typesafe.config.Config
 import com.xten.tide.configuration.{ConfigConstants, Configuration}
 import com.xten.tide.runtime.runtime.akka.AkkaUtils
 import com.xten.tide.runtime.runtime.messages.ActionRes
-import com.xten.tide.runtime.runtime.messages.cluster.{NodeMember, NodeMemberUpAction}
-import com.xten.tide.runtime.runtime.messages.resource.{JobDispatchResponse, JobUpDispatchRequest}
+import com.xten.tide.runtime.runtime.messages.cluster._
+import com.xten.tide.runtime.runtime.messages.resource._
 import com.xten.tide.runtime.runtime.optimizer.node.JobBalanceNodeDispatcher
 import com.xten.tide.runtime.util.AddressUtil
 import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
+import scala.util.control.Breaks
 
 /**
   * Created with IntelliJ IDEA. 
@@ -28,16 +30,25 @@ class ResourceManager(resourceContext: ResourceContext) extends Actor{
 
   val nodeDispatcher = new JobBalanceNodeDispatcher
 
+  val appManagerRef = AkkaUtils.pathToActorRef(resourceContext.getAppManagerPath)
+
   override def preStart(): Unit = {
     super.preStart()
     LOG.info(s"ResourceManager has start : ${AkkaUtils.remotePath()}")
+
+    val member = new ResourceMember(AkkaUtils.remotePath(),context.self.path.name)
+    member.memberStatus = MemberStatus.Up
+    member.rule = MemberRule.RESOURCE_MANAGER
+
+    appManagerRef ! new MemberUpAction(member)
   }
+
 
 
   override def receive: Receive = {
     case action:NodeMemberUpAction => {
       val sender = context.sender()
-      nodeRuntimeMap.put(action.nodeMember.name,new NodeMemberRuntime(action.nodeMember))
+      nodeRuntimeMap.put(action.nodeMember.id,new NodeMemberRuntime(action.nodeMember))
       sender ! ActionRes.defaultSuccess()
 
     }
@@ -47,6 +58,24 @@ class ResourceManager(resourceContext: ResourceContext) extends Actor{
       val dispatchers = nodeDispatcher.dispatchJob(nodeRuntimeMap.values.toList,request.jobs)
 
       sender ! JobDispatchResponse(dispatchers)
+    }
+    case request : AppMasterDispatchRequest => {
+      val sender = context.sender()
+
+      val dispatchers = nodeDispatcher.dispatchJob(nodeRuntimeMap.values.toList, request.desc)
+
+      sender ! JobDispatchResponse(dispatchers)
+
+    }
+    case resource : ConsumedResource => {
+      if (nodeRuntimeMap.get(resource.node.id).isDefined) {
+        nodeRuntimeMap.get(resource.node.id).get.consumeResource()
+      }
+    }
+    case resource : ReturnedResource => {
+      if (nodeRuntimeMap.get(resource.node.id).isDefined) {
+        nodeRuntimeMap.get(resource.node.id).get.returnResource(resource.node)
+      }
     }
   }
 }
@@ -110,8 +139,38 @@ object ResourceManager {
 
 class NodeMemberRuntime(val nodeMember:NodeMember ){
 
-  var taskNum = 0
+
+  var orderedJobNum = 0
+  var jobNum = 0
   var components = 0
+
+
+  def orderJobResource() = orderedJobNum += 1
+  def addJobResource() = jobNum +=1
+
+
+  def consumeResource() = {
+    orderedJobNum -= 1
+    jobNum += 1
+
+  }
+
+  def returnResource(nodeResource : NodeResource) = {
+    orderedJobNum -= 1
+
+    Breaks.breakable{
+      for (i <- 0 until nodeMember.usedPorts.length) {
+        if (nodeMember.usedPorts(i) == nodeResource.port){
+          nodeMember.usedPorts.remove(i)
+          Breaks.break()
+        }
+      }
+    }
+
+    jobNum = nodeMember.usedPorts.length
+
+
+  }
 
 
 }

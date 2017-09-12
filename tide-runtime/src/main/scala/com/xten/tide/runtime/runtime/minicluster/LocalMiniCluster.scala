@@ -3,6 +3,7 @@ package com.xten.tide.runtime.runtime.minicluster
 import akka.actor.{ActorRef, ActorSystem, Props}
 import com.typesafe.config.{Config, ConfigFactory}
 import com.xten.tide.configuration.{ConfigConstants, Configuration}
+import com.xten.tide.runtime.api.graph.ExecutionGraph
 import com.xten.tide.runtime.runtime.akka.AkkaUtils
 import com.xten.tide.runtime.runtime.appmaster.AppMaster
 import com.xten.tide.runtime.runtime.nodemanager.{NodeContext, NodeManager}
@@ -27,10 +28,10 @@ class LocalMiniCluster(configuration: Configuration) extends MiniCluster(configu
   Thread.sleep(2000)
 
 
-  override def startAppMaster(system: ActorSystem): ActorRef = {
+  override def startAppMaster(system: ActorSystem,executionGraph: ExecutionGraph): ActorRef = {
 
     val resourceManagerPath = AkkaUtils.remotePath(resourceManagerActorSystem,resourceManager)
-    AppMaster.runAppMaster(Configuration.apply(),resourceManagerPath,system)
+    AppMaster.runAppMaster(Configuration.apply(),resourceManagerPath,system,executionGraph)
 
   }
 
@@ -44,8 +45,4 @@ object LocalMiniCluster {
     new LocalMiniCluster(configuration)
   }
 
-  def main(args: Array[String]): Unit = {
-    val local = new LocalMiniCluster(Configuration.apply())
-    local.start()
-  }
 }

@@ -1,6 +1,6 @@
 package com.xten.tide.runtime.runtime.optimizer
 
-import com.xten.tide.runtime.runtime.appmaster.JobGraph
+import com.xten.tide.runtime.runtime.appmaster.{AppRuntime, JobRuntime}
 import com.xten.tide.runtime.runtime.messages.app.AppUpAction
 
 /**
@@ -10,7 +10,7 @@ import com.xten.tide.runtime.runtime.messages.app.AppUpAction
   */
 trait AppOptimizer {
 
-  def appUp(appUpAction: AppUpAction) : List[JobGraph]
+  def appUp(appRuntime: AppRuntime): List[JobRuntime]
 
   def appDown()
 

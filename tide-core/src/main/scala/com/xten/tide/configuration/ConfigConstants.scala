@@ -244,5 +244,10 @@ object ConfigConstants {
     */
   val DEFAULT_LOCAL_RESOURCE_PATH = "/opt/tide"
 
+  /**
+    * 执行并行度
+    */
+  val EXECUTION_PARALLELISM_KEY = "execution_parallelism"
+
 
 }

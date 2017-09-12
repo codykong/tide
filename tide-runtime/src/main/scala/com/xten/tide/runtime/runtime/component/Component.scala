@@ -4,7 +4,7 @@ import com.xten.tide.api.functions.BaseFunction
 import com.xten.tide.runtime.api.event.IEvent
 import com.xten.tide.runtime.runtime.akka.{AkkaActor, AkkaUtils}
 import com.xten.tide.runtime.runtime.component.receiver.{DistributionStrategy, ProximityDistributionStrategy}
-import com.xten.tide.runtime.runtime.messages.cluster.{MemberStatus, MemberUpped, ReceiverChangeAction, TaskMember}
+import com.xten.tide.runtime.runtime.messages.cluster._
 import org.slf4j.LoggerFactory
 
 /**
@@ -62,8 +62,10 @@ abstract class Component[T <: BaseFunction](componentContext: ComponentContext[T
 
 
   private def memberUp() = {
-    val member = new TaskMember(context.system.name,componentContext.taskId,AkkaUtils.remotePath,MemberStatus.Up)
-    context.parent ! MemberUpped(member)
+    val member = new TaskMember(context.system.name,componentContext.taskId,AkkaUtils.remotePath)
+
+    member.memberStatus = MemberStatus.Up
+    context.parent ! TaskMemberUpped(member)
   }
 
   /**

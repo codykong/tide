@@ -5,6 +5,7 @@ import java.net.{InetAddress, Socket}
 import java.util
 
 import com.xten.tide.configuration.IllegalConfigurationException
+import com.xten.tide.utils.Preconditions
 import org.slf4j.LoggerFactory
 import sun.net.util.IPAddressUtil
 

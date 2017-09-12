@@ -1,5 +1,4 @@
-package com.xten.tide.runtime.util
-
+package com.xten.tide.utils
 
 /**
   * Created with IntelliJ IDEA. 

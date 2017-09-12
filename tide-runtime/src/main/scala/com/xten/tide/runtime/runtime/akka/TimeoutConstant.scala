@@ -11,8 +11,8 @@ import scala.concurrent.duration._
   */
 object TimeoutConstant {
 
-  val SYSTEM_MSG_DURATION = FiniteDuration.apply(3, TimeUnit.SECONDS)
-  val SYSTEM_MSG_TIMEOUT = Timeout(3,TimeUnit.SECONDS)
+  val SYSTEM_MSG_DURATION = FiniteDuration.apply(20, TimeUnit.SECONDS)
+  val SYSTEM_MSG_TIMEOUT = Timeout(20,TimeUnit.SECONDS)
 
   val TIMEOUT_5_SECONDS = Timeout(5,TimeUnit.SECONDS)
   val TIMEOUT_2_SECONDS = Timeout(2,TimeUnit.SECONDS)

@@ -9,6 +9,10 @@ class RegisterException(message :String) extends RuntimeException(message){
 
 }
 
+class ResourceShortageException(message :String) extends RuntimeException(message){
+
+}
+
 object RegisterException {
   def apply(): RegisterException = {
     new RegisterException("")

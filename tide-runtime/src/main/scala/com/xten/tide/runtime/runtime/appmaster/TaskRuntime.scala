@@ -1,23 +1,24 @@
-package com.xten.tide.runtime.runtime.jobgraph
+package com.xten.tide.runtime.runtime.appmaster
 
 import java.util.UUID
 
 import com.xten.tide.configuration.Configuration
-import com.xten.tide.runtime.api.graph.StreamNode
-import com.xten.tide.runtime.runtime.messages.cluster.MemberStatus
+import com.xten.tide.runtime.runtime.messages.cluster.{MemberStatus, Task}
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
-import scala.util.Random
 
 /**
   * Created with IntelliJ IDEA. 
   * User: kongqingyu
   * Date: 2017/6/23 
   */
-class Task(val streamNodeName :String,val streamNodeId : String,val id :Int) extends Serializable{
+class TaskRuntime(val operatorId :String,
+                  val operatorName : String,
+                  val id :Int,
+                  val className : String,
+                  var logicalReceivers : List[String]) extends Serializable{
 
-  var jobVertexClass : Class[_ <: Any] = _
 
   val taskId : String = UUID.randomUUID().toString
 
@@ -25,14 +26,18 @@ class Task(val streamNodeName :String,val streamNodeId : String,val id :Int) ext
 
   var path : String = _
 
-  var receivers : List[String] = _
-
   var memberStatus : MemberStatus = MemberStatus.Init
   var receiverMap = new mutable.HashMap[String,ListBuffer[String]]()
 
   def up(path : String) = {
     this.path = path
     memberStatus = MemberStatus.Up
+  }
+
+
+
+  def toTask():Task = {
+    new Task(id,className,logicalReceivers,taskId,executionConfig)
   }
 
   /**
@@ -56,24 +61,29 @@ class Task(val streamNodeName :String,val streamNodeId : String,val id :Int) ext
 
 }
 
-object Task{
+object TaskRuntime{
 
-  def transformTask(streamNode :StreamNode): Set[Task] = {
+  def transformTask(operatorRuntime: OperatorRuntime): Set[TaskRuntime] = {
 
-//    val componentNodes : mutable.Map[Int,ComponentNode] = new mutable.HashMap()
 
-    var tasks = new mutable.HashSet[Task]
+    var tasks = new mutable.HashSet[TaskRuntime]
 
-    for (i <- 1 to streamNode.parallelism){
-      val task = new Task(streamNode.name,streamNode.streamNodeId,i)
+    for (i <- 1 to operatorRuntime.getParallelism()){
 
-      task.jobVertexClass = streamNode.jobVertexClass
-      task.receivers = streamNode.getOutNodes()
-
+      val task = TaskRuntime(operatorRuntime,i)
       tasks.+=(task)
     }
 
     tasks.toSet
 
+  }
+
+  def apply(operatorRuntime: OperatorRuntime,id : Int): TaskRuntime ={
+
+    new TaskRuntime(operatorRuntime.getOperatorId(),
+      operatorRuntime.getOperatorName(),
+      id,
+      operatorRuntime.getClassName(),
+      operatorRuntime.getOutOperatorIds)
   }
 }

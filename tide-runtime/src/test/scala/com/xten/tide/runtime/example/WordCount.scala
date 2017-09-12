@@ -1,5 +1,6 @@
 package com.xten.tide.runtime.example
 
+import com.xten.tide.client.program.ClusterEnvironment
 import com.xten.tide.runtime.api.environment.ExecutionEnvironment
 import com.xten.tide.runtime.api.event.{EmptyEvent, IEvent, IntEvent}
 import com.xten.tide.runtime.api.functions.source.{SourceContext, SourceFunction}
@@ -12,7 +13,9 @@ import com.xten.tide.runtime.api.functions.MapFunction
   */
 object WordCount extends App{
 
-  val env = ExecutionEnvironment.getExecutionEnvironment()
+//  val env = ExecutionEnvironment.getExecutionEnvironment()
+
+  val env = new ClusterEnvironment
 
   val source = env.addSource(new WordCountSourceFunction)
   source.map(new WordCountMapFunction).print()

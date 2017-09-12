@@ -2,13 +2,17 @@ package com.xten.tide.runtime.runtime.akka
 
 import java.util
 
+import akka.actor.Status.Success
 import akka.actor.{ActorContext, ActorPath, ActorRef, ActorSelection, ActorSystem, ExtendedActorSystem, Extension, ExtensionKey, Props}
 import com.typesafe.config.{Config, ConfigFactory}
 import com.xten.tide.api.functions.BaseFunction
 import com.xten.tide.configuration.{ConfigConstants, Configuration}
+import com.xten.tide.runtime.runtime.akka.FutureTest.aggregate
 import com.xten.tide.runtime.runtime.component.ComponentContext
 import org.jboss.netty.logging.{InternalLoggerFactory, Slf4JLoggerFactory}
 import org.slf4j.LoggerFactory
+
+import scala.concurrent.Await
 
 /**
   * Created with IntelliJ IDEA. 
@@ -74,6 +78,14 @@ object AkkaUtils {
 
   def pathToSelection(paths:List[String])(implicit context: ActorContext) : List[ActorSelection] = {
     paths.map(p => {context.actorSelection(p)})
+  }
+
+
+  def pathToActorRef(path:String)(implicit context: ActorContext) : ActorRef = {
+
+    val future = context.actorSelection(path).resolveOne(TimeoutConstant.SYSTEM_MSG_DURATION)
+
+    Await.result(future, TimeoutConstant.SYSTEM_MSG_DURATION)
   }
 
 

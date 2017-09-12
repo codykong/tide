@@ -1,16 +1,20 @@
 package com.xten.tide.runtime.runtime.nodemanager
 
+import java.io.File
+import java.net.URL
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import com.typesafe.config.{Config, ConfigFactory, ConfigValue}
 import com.xten.tide.configuration.{ClusterOptions, ConfigConstants, Configuration}
 import com.xten.tide.runtime.runtime.akka.{AkkaConfig, AkkaUtils, TimeoutConstant}
-import com.xten.tide.runtime.runtime.messages.cluster.{MemberUpAction, NodeMember, NodeMemberUpAction}
+import com.xten.tide.runtime.runtime.messages.cluster._
 import com.xten.tide.runtime.runtime.jobmanager.{JobManager, JobManagerContext}
 import akka.pattern.{AskTimeoutException, ask}
+import com.xten.tide.client.program.JobWithJars
+import com.xten.tide.runtime.api.graph.ExecutionGraph
+import com.xten.tide.runtime.runtime.appmaster.AppMaster
 import com.xten.tide.runtime.runtime.messages.ActionRes
-import com.xten.tide.runtime.runtime.messages.job.{JobUpAction, JobUpped}
 import com.xten.tide.runtime.runtime.resourcemanager.{ResourceManager, ResourceRegister}
 import com.xten.tide.runtime.util.AddressUtil
 import org.slf4j.LoggerFactory
@@ -30,7 +34,7 @@ class NodeManager(nodeContext: NodeContext) extends Actor{
 
   private val LOG = LoggerFactory.getLogger(classOf[NodeManager])
 
-  var jobManagers :mutable.Map[String,String] = new mutable.HashMap[String,String]()
+  var runtimeJobs :mutable.Map[String,AbstractRuntimeJob] = new mutable.HashMap[String,AbstractRuntimeJob]()
 
   var resourceManagerPathOption :Option[String] = None
 
@@ -40,7 +44,16 @@ class NodeManager(nodeContext: NodeContext) extends Actor{
 
   override def receive: Receive = {
     case  job:JobUpAction => {
-      startJob(job)
+      val runtimeJob = new RuntimeJob(job.appMasterPath,job.member.id,job.member.id,job.configuration,job.tasks,job.userJars)
+      startJob(runtimeJob)
+    }
+    case action : AppMasterUpAction => {
+
+      val appManagerPath = AkkaUtils.remotePath(context.system,context.sender())
+      val runtimeAppMaster = new RuntimeAppMaster(appManagerPath,action.member.id,action.member.id,
+        action.executionGraph.executionConfig,action.resourceManagerPath,action.executionGraph)
+
+      startJob(runtimeAppMaster)
     }
   }
 
@@ -99,56 +112,70 @@ class NodeManager(nodeContext: NodeContext) extends Actor{
   }
 
 
+
   /**
     * 启动Job
     * @param job
     */
-  private def startJob(job: JobUpAction) ={
+  private def startJob(job: AbstractRuntimeJob) ={
 
+    val sender = context.sender()
 
     val basicConfig = ConfigFactory.load(ConfigConstants.AKKA_REMOTE_BASIC_CONFIG_PATH)
 
     // 根据参数，组织启动所需的配置文件
-    val executionConfig = this.executionConfig(job,basicConfig)
+    val executionConfig = this.executionConfig(job.configuration,basicConfig)
 
     var jobManagerActor:Option[ActorRef] = None
+    var jobManagerPath : Option[String] = None
 
-    if (jobManagers.get(job.jobId).isEmpty){
-      // 启动ActorSystem
-      val actorSystem = JobManager.startJobManagerActorSystem(job.jobId,executionConfig)
-      // 启动job的任务管理Actor
-      val jobManagerContext = JobManagerContext(job.appMasterPath)
-      jobManagerActor = Some(JobManager.startJobManager(actorSystem,jobManagerContext))
+    if (runtimeJobs.get(job.jobId).isEmpty){
 
-      // 启动的JobManager做缓存
-      jobManagers.put(job.jobId,AkkaUtils.remotePath(actorSystem,jobManagerActor.get))
+      if (job.isInstanceOf[RuntimeJob]){
 
-    }else{
+        val runtimeJob = job.asInstanceOf[RuntimeJob]
+        val parentClassLoader = this.getClass.getClassLoader
 
-      val actorSelection = context.system.actorSelection(jobManagers.get(job.jobId).get)
+        val userClassLoader = JobWithJars.buildUserCodeClassLoader(runtimeJob.userJars,List.empty,parentClassLoader)
+        Thread.currentThread().setContextClassLoader(userClassLoader)
 
-      actorSelection.resolveOne().onComplete{
-        case Success(ref) => jobManagerActor = Some(ref)
+        LOG.info(s"userClassLoader is ${userClassLoader}")
+        LOG.info(s"currentThread  setContextClassLoader is ${Thread.currentThread().getContextClassLoader}")
+        // 启动ActorSystem
+        val actorSystem = JobManager.startJobManagerActorSystem(job.jobId,executionConfig)
+        // 启动job的任务管理Actor
+        val jobManagerContext = new JobManagerContext(job.managerPath,runtimeJob.tasks)
+        jobManagerActor = Some(JobManager.startJobManager(actorSystem,jobManagerContext))
+
+        jobManagerPath = Some(AkkaUtils.remotePath(actorSystem,jobManagerActor.get))
+        Thread.currentThread().setContextClassLoader(parentClassLoader)
+      }else {
+        // 启动ActorSystem
+        val actorSystem = JobManager.startJobManagerActorSystem(job.jobId,executionConfig)
+        val appRuntime = job.asInstanceOf[RuntimeAppMaster]
+        jobManagerActor = Some(AppMaster.runAppMaster(job.configuration,appRuntime.resourcePath,actorSystem,appRuntime.executionGraph))
+        jobManagerPath = Some(AkkaUtils.remotePath(actorSystem,jobManagerActor.get))
       }
 
+      job.jobMonitorRef = jobManagerActor.get
+
+      // 启动的JobManager做缓存
+      runtimeJobs.put(job.jobId,job)
+
+    }else{
+
+      jobManagerActor = Some(runtimeJobs.get(job.jobId).get.jobMonitorRef)
     }
     // System 启动后，返回成功
-    sender ! JobUpped(job.jobId,AkkaUtils.remotePath(context.system,jobManagerActor.get))
-
-
-    // 启动所有的业务Component
-    if (jobManagerActor.isDefined){
-      ask(jobManagerActor.get,MemberUpAction(job.tasks))
-    }else{
-      throw new Exception("taskManagerActor is not started")
-    }
+    val jobUpped = JobUpped(job.jobId,jobManagerPath.get,ActionRes.ACTION_SUCCESS,"")
+    sender ! jobUpped
 
   }
 
-  def executionConfig(job: JobUpAction, basicConfig : Config) : Config = {
+  def executionConfig(configuration: Configuration, basicConfig : Config) : Config = {
     val configMap= new mutable.HashMap[String,Any]()
-    configMap.put(ConfigConstants.AKKA_REMOTE_NETTY_TCP_PORT,job.configuration.getInt(ConfigConstants.TASK_IPC_PORT_KEY,None))
-    configMap.put(ConfigConstants.AKKA_REMOTE_NETTY_TCP_HOSTNAME,job.configuration.getString(ConfigConstants.TASK_IPC_ADDRESS_KEY,None))
+    configMap.put(ConfigConstants.AKKA_REMOTE_NETTY_TCP_PORT,configuration.getInt(ConfigConstants.TASK_IPC_PORT_KEY,None))
+    configMap.put(ConfigConstants.AKKA_REMOTE_NETTY_TCP_HOSTNAME,configuration.getString(ConfigConstants.TASK_IPC_ADDRESS_KEY,None))
 
 
     val remoteConfig = ConfigFactory.parseMap(JavaConverters.mapAsJavaMap(configMap))
@@ -200,3 +227,18 @@ object NodeManager{
 
 
 }
+
+class AbstractRuntimeJob(val managerPath : String ,val jobId : String,val jobName : String,val configuration : Configuration){
+
+  var jobMonitorRef : ActorRef = null
+
+}
+
+class RuntimeJob(appMasterPath : String , jobId : String,jobName : String,configuration : Configuration,
+                 val tasks: List[Task],
+                 val userJars : List[URL])
+  extends AbstractRuntimeJob(appMasterPath , jobId ,jobName,configuration)
+
+class RuntimeAppMaster(appManagerPath : String , appId : String,appName : String,configuration : Configuration,
+                       val resourcePath : String,val executionGraph: ExecutionGraph)
+  extends AbstractRuntimeJob(appManagerPath , appId ,appName,configuration)

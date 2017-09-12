@@ -12,11 +12,11 @@
     <artifactId>tide-client</artifactId>
 
     <dependencies>
-        <dependency>
-            <groupId>com.xten.tide</groupId>
-            <artifactId>tide-runtime</artifactId>
-            <version>${project.version}</version>
-        </dependency>
+        <!--<dependency>-->
+            <!--<groupId>com.xten.tide</groupId>-->
+            <!--<artifactId>tide-runtime</artifactId>-->
+            <!--<version>${project.version}</version>-->
+        <!--</dependency>-->
     </dependencies>
 
 

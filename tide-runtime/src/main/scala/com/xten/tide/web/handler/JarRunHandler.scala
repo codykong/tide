@@ -6,6 +6,8 @@ import java.net.URL
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import com.xten.tide.client.program.{ClusterClient, PackagedProgram}
 import com.xten.tide.configuration.Configuration
+import com.xten.tide.runtime.api.environment.ExecutionEnvironment
+import com.xten.tide.runtime.runtime.appmanager.AppManager
 import com.xten.tide.runtime.runtime.messages.{ActionMessage, ActionRes, SuccessActionRes, TideMessage}
 
 /**
@@ -46,7 +48,22 @@ class JarRunHandler(configuration: Configuration) extends Actor{
 
     val program = new PackagedProgram(jarFile,List.empty[URL],action.entryClass)
 
+    val parentClassLoader = this.getClass.getClassLoader
+
     val userClassLoader = program.getUserCodeClassLoader()
+
+    val plan = ClusterClient.getPlan(program,1)
+
+    AppManager.submitPlan(plan)
+
+
+
+
+
+
+
+
+
 
   }
 

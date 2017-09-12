@@ -6,7 +6,7 @@ import com.xten.tide.runtime.api.functions.source.{ParallelSourceFunction, Sourc
 import com.xten.tide.runtime.api.graph.{StreamGraph, StreamGraphGenerator}
 import com.xten.tide.runtime.api.operators.SourceOperator
 import com.xten.tide.runtime.api.transformations.Transformation
-import com.xten.tide.runtime.util.Preconditions
+import com.xten.tide.utils.Preconditions
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -76,6 +76,11 @@ abstract class ExecutionEnvironment {
     StreamGraphGenerator.generate(this,getParallelism,this.transformations.toList)
 
 
+  }
+
+  def setParallelism(parallelism: Int): Unit = {
+
+    config.setParallelism(parallelism)
   }
 
 

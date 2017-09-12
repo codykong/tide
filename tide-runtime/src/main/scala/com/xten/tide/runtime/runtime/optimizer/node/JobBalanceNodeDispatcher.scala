@@ -1,7 +1,6 @@
 package com.xten.tide.runtime.runtime.optimizer.node
 
-import com.xten.tide.runtime.runtime.messages.cluster.NodeResource
-import com.xten.tide.runtime.runtime.messages.resource.JobDispatch
+import com.xten.tide.runtime.runtime.messages.resource.{JobDispatch, NodeResource}
 import com.xten.tide.runtime.runtime.resourcemanager.NodeMemberRuntime
 import com.xten.tide.runtime.runtime.resourcemanager.job.JobResourceDesc
 import org.slf4j.LoggerFactory
@@ -31,11 +30,13 @@ class JobBalanceNodeDispatcher extends NodeDispatcher{
 
     var jobDispatchers = new mutable.ListBuffer[JobDispatch]
 
-    val sortedNodes = nodes.sortBy(p => p.components)
+    val sortedNodes = nodes.sortBy(p => p.jobNum)
 
     for (i <- 0 until jobResources.length){
+      sortedNodes(i).orderJobResource()
+
       val node = sortedNodes(i).nodeMember
-      val nodeResource = NodeResource(node.name,node.path,newPort(node),node.ip)
+      val nodeResource = NodeResource(node.id,node.path,newPort(node),node.ip)
 
       jobDispatchers.+=(JobDispatch(nodeResource,jobResources(i)))
     }

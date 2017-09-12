@@ -309,6 +309,7 @@ object PackagedProgram {
         if (exceptionInMethod.isInstanceOf[Error]) throw exceptionInMethod.asInstanceOf[Error]
         else if (exceptionInMethod.isInstanceOf[ProgramParametrizationException]) throw exceptionInMethod.asInstanceOf[ProgramParametrizationException]
         else if (exceptionInMethod.isInstanceOf[ProgramInvocationException]) throw exceptionInMethod.asInstanceOf[ProgramInvocationException]
+        else if (exceptionInMethod.isInstanceOf[ProgramAbortException]) throw exceptionInMethod.asInstanceOf[ProgramAbortException]
         else throw new ProgramInvocationException("The main method caused an error.", exceptionInMethod)
       }
       case t: Throwable => {

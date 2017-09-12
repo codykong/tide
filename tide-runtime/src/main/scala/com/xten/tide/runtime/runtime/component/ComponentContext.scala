@@ -2,9 +2,8 @@ package com.xten.tide.runtime.runtime.component
 
 import com.xten.tide.api.functions.BaseFunction
 import com.xten.tide.configuration.Configuration
-import com.xten.tide.runtime.runtime.jobgraph.Task
+import com.xten.tide.runtime.runtime.messages.cluster.Task
 
-import scala.collection.mutable
 
 /**
   * Created with IntelliJ IDEA. 
@@ -22,9 +21,9 @@ object ComponentContext {
     new ComponentContext[T](taskId,function,taskConfig,List.empty)
   }
 
-  def apply[T <: BaseFunction](function: T,componentNode:Task) :ComponentContext[T] = {
+  def apply[T <: BaseFunction](function: T,task:Task) :ComponentContext[T] = {
 
 
-    new ComponentContext[T](componentNode.taskId,function,componentNode.executionConfig,componentNode.receivers)
+    new ComponentContext[T](task.taskId,function,task.executionConfig,task.logicalReceivers)
   }
 }

@@ -3,7 +3,7 @@ package com.xten.tide.runtime.api.datastream
 import com.xten.tide.runtime.api.environment.ExecutionEnvironment
 import com.xten.tide.runtime.api.operators.SourceOperator
 import com.xten.tide.runtime.api.transformations.{SourceTransformation, Transformation}
-import com.xten.tide.runtime.util.Preconditions
+import com.xten.tide.utils.Preconditions
 
 /**
   * Created with IntelliJ IDEA. 

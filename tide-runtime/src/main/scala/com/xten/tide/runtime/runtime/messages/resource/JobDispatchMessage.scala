@@ -1,6 +1,5 @@
 package com.xten.tide.runtime.runtime.messages.resource
 
-import com.xten.tide.runtime.runtime.messages.cluster.NodeResource
 import com.xten.tide.runtime.runtime.messages.{RequestMessage, ResponseMessage}
 import com.xten.tide.runtime.runtime.resourcemanager.job.{JobResourceDesc}
 
@@ -21,3 +20,9 @@ case class JobDispatch(nodeResource : NodeResource, jobResource: JobResourceDesc
 
 
 case class JobDispatchResponse(jobDispatches : List[JobDispatch]) extends ResponseMessage
+
+/**
+  * AppMaster分配请求
+  * @param desc
+  */
+case class AppMasterDispatchRequest(desc : JobResourceDesc) extends RequestMessage
