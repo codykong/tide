@@ -1,7 +1,8 @@
-package com.xten.tide.runtime.runtime.component
+package com.xten.tide.runtime.runtime.component.execute
 
 import com.xten.tide.runtime.api.event.IEvent
 import com.xten.tide.runtime.api.functions.MapFunction
+import com.xten.tide.runtime.runtime.component.{Component, ComponentContext}
 import org.slf4j.LoggerFactory
 
 /**
@@ -16,9 +17,7 @@ class MapComponent(componentContext: ComponentContext[MapFunction])
 
   override def execute(input: IEvent): Unit = {
     val output = componentContext.function.map(input)
-
-    println(s"MapComponent execute is ${output}")
-//    emit(output)
+    emit(output)
   }
 
 }

@@ -1,6 +1,6 @@
 package com.xten.tide.runtime.runtime.messages.cluster
 
-import com.xten.tide.runtime.runtime.messages.{ActionMessage, NoticeMessage, TideMessage}
+import com.xten.tide.runtime.runtime.messages.{ActionMessage, ActionRes, NoticeMessage, TideMessage}
 
 /**
   * Created with IntelliJ IDEA. 
@@ -11,7 +11,7 @@ import com.xten.tide.runtime.runtime.messages.{ActionMessage, NoticeMessage, Tid
 /**
   * 该Actor已经启动
   */
-case class TaskMemberUpped(member : TaskMember) extends NoticeMessage
+case class TaskMemberUpped(member : TaskMember,code : Int,msg :String) extends ActionRes(code,msg)
 
 /**
   * 该Action已经被移除

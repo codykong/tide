@@ -11,7 +11,7 @@ import com.xten.tide.runtime.api.event.IEvent
 trait MapFunction extends BaseFunction{
 
 
-  def map(value:IEvent):IEvent;
+  def map(event:IEvent):IEvent;
 
 
 

@@ -11,5 +11,5 @@ import com.xten.tide.runtime.api.event.IEvent
 trait SinkFunction extends BaseFunction{
 
   @throws[Exception]
-  def invoke(value :IEvent)
+  def invoke(event :IEvent)
 }

@@ -242,7 +242,7 @@ object ConfigConstants {
   /**
     * Master节点的通信地址
     */
-  val DEFAULT_LOCAL_RESOURCE_PATH = "/opt/tide"
+  val DEFAULT_LOCAL_RESOURCE_PATH = "/Users/xten/MySpace/github/xten.tide/tide-examples/tide-examples-function/target"
 
   /**
     * 执行并行度

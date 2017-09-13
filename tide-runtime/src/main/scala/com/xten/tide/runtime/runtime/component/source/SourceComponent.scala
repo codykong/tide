@@ -1,9 +1,10 @@
-package com.xten.tide.runtime.runtime.component
+package com.xten.tide.runtime.runtime.component.source
 
 import com.xten.tide.runtime.api.event.{EmptyEvent, IEvent}
 import com.xten.tide.runtime.api.functions.source.SourceFunction
 import com.xten.tide.runtime.api.operators.BaseSourceContext
 import com.xten.tide.runtime.runtime.akka.TimeoutConstant
+import com.xten.tide.runtime.runtime.component.{Component, ComponentContext}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -38,7 +39,6 @@ class SourceComponent(componentContext: ComponentContext[SourceFunction])
     context.system.scheduler.scheduleOnce(TimeoutConstant.DURATION_0_SECONDS) {
       while (true){
         val event = sourceContext.take()
-        println(s"emit is ${event}")
         emit(event)
       }
     }

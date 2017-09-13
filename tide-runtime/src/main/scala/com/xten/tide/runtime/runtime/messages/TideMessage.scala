@@ -62,6 +62,7 @@ object ResponseMessageCodeEnum extends Enumeration{
 }
 
 object ActionRes{
+  val ACTION_SUCCESS_MESSAGE = "success"
   val ACTION_SUCCESS = 1
   val ACTION_FAIL = 0
 

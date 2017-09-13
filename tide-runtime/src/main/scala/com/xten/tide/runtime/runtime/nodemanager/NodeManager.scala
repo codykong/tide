@@ -139,8 +139,6 @@ class NodeManager(nodeContext: NodeContext) extends Actor{
         val userClassLoader = JobWithJars.buildUserCodeClassLoader(runtimeJob.userJars,List.empty,parentClassLoader)
         Thread.currentThread().setContextClassLoader(userClassLoader)
 
-        LOG.info(s"userClassLoader is ${userClassLoader}")
-        LOG.info(s"currentThread  setContextClassLoader is ${Thread.currentThread().getContextClassLoader}")
         // 启动ActorSystem
         val actorSystem = JobManager.startJobManagerActorSystem(job.jobId,executionConfig)
         // 启动job的任务管理Actor

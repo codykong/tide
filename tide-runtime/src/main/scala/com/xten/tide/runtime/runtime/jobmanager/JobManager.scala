@@ -4,9 +4,12 @@ import akka.actor.{Actor, ActorRef, ActorSystem, PoisonPill, Props}
 import com.typesafe.config.Config
 import com.xten.tide.api.functions.BaseFunction
 import com.xten.tide.runtime.api.functions.MapFunction
+import com.xten.tide.runtime.api.functions.sink.SinkFunction
 import com.xten.tide.runtime.api.functions.source.SourceFunction
 import com.xten.tide.runtime.runtime.akka.AkkaUtils
-import com.xten.tide.runtime.runtime.component.{ComponentContext, MapComponent, SourceComponent}
+import com.xten.tide.runtime.runtime.component.execute.MapComponent
+import com.xten.tide.runtime.runtime.component.ComponentContext
+import com.xten.tide.runtime.runtime.component.source.SourceComponent
 import com.xten.tide.runtime.runtime.messages.cluster._
 import org.slf4j.LoggerFactory
 
@@ -36,7 +39,6 @@ class JobManager(jobManagerContext: JobManagerContext) extends Actor() {
 
   override def receive: Receive = {
     case action: TaskMemberUpAction => {
-      LOG.info(s"JobManager currentThread is ${Thread.currentThread().getContextClassLoader}")
       for(task <- action.tasks){
         startComponent(task)
       }
@@ -47,13 +49,11 @@ class JobManager(jobManagerContext: JobManagerContext) extends Actor() {
       }
     }
     case member : TaskMemberUpped => {
-      LOG.info(s"MemberUpped is ${member.member}")
-      val appMasterPathSelection = context.system.actorSelection(jobManagerContext.appMasterPath)
+      sons.put(member.member.taskId,context.sender())
 
-      appMasterPathSelection ! member
+      appMasterActorRef ! member
     }
     case member : TaskMemberRemoved => {
-      LOG.info(s"MemberRemoved is ${member.member}")
     }
 
   }
@@ -80,6 +80,11 @@ class JobManager(jobManagerContext: JobManagerContext) extends Actor() {
         val actorRef = AkkaUtils.createComponent(context,classOf[SourceComponent],componentContext)
         sons.put(task.taskId,actorRef)
 
+      }
+      case function: SinkFunction => {
+        val componentContext = ComponentContext[BaseFunction](function, task)
+        val actorRef = AkkaUtils.createComponent(context,classOf[SourceComponent],componentContext)
+        sons.put(task.taskId,actorRef)
       }
       case any :Any => {
         LOG.info(s"Function is ${any}")

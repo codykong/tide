@@ -10,7 +10,7 @@ import com.xten.tide.runtime.api.event.IEvent
 class PrintSinkFunction extends SinkFunction{
 
   @throws[Exception]
-  override def invoke(value: IEvent): Unit = {
-    println(value)
+  override def invoke(event: IEvent): Unit = {
+    println(s"${this} receive and print ${event}")
   }
 }
