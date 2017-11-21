@@ -4,11 +4,14 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.Http.ServerBinding
 import akka.http.scaladsl.server._
-import akka.util.Timeout
+import akka.util.{ByteString, Timeout}
 import com.xten.tide.runtime.runtime.akka.TimeoutConstant
 import akka.http.scaladsl.server.Directives._
 import akka.stream.ActorMaterializer
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+import akka.http.scaladsl.marshalling.ToResponseMarshallable
+import akka.http.scaladsl.model.{ContentTypes, HttpEntity, MediaTypes}
+import akka.stream.scaladsl.Framing
 import com.xten.tide.configuration.Configuration
 import com.xten.tide.runtime.runtime.messages.SuccessActionRes
 import com.xten.tide.web.handler.{Handlers, JarRunHandler}
@@ -32,19 +35,47 @@ class RestApi(actorSystem : ActorSystem,timeout : Timeout) extends EventMarshall
 
   def routes : Route = route
 
-  def route = pathPrefix("deploy") {
-    pathEndOrSingleSlash {
-      post {
-        entity(as[DeployTide]) { ed=>
-          onSuccess(DeployRoute.run(ed)){
-            case res: SuccessActionRes => complete {
-              res.toString
+  def route = {
+    pathPrefix("deploy") {
+      pathEndOrSingleSlash {
+        post {
+          entity(as[DeployTide]) { ed =>
+            onSuccess(DeployRoute.run(ed)) {
+              case res: SuccessActionRes => complete {
+                res.toString
+              }
             }
-          }
 
+          }
         }
       }
-    }
+    }~
+    pathPrefix("index") {
+      pathEndOrSingleSlash {
+        val entity = HttpEntity(ContentTypes.`text/html(UTF-8)`, DeployRoute.uploadPage())
+        complete(entity)
+      }
+    }~
+      path("upload") {
+        extractRequestContext { ctx =>
+          implicit val materializer = ctx.materializer
+          implicit val ec = ctx.executionContext
+
+          fileUpload("csv") {
+            case (metadata, byteSource) =>
+
+              val sumF: Future[Int] =
+              // sum the numbers as they arrive so that we can
+              // accept any size of file
+                byteSource.via(Framing.delimiter(ByteString("\n"), 1024))
+                  .mapConcat(_.utf8String.split(",").toVector)
+                  .map(_.toInt)
+                  .runFold(0) { (acc, n) => acc + n }
+
+              onSuccess(sumF) { sum => complete(s"Sum: $sum") }
+          }
+        }
+      }
   }
 
 }

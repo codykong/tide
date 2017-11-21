@@ -7,6 +7,7 @@ package com.xten.tide.configuration
   */
 object ConfigConstants {
 
+  val TIDE_LOG_CONF_FILENAME = "log4j2.xml"
 
   // ------------------------------------------------------------------------
   //  流控

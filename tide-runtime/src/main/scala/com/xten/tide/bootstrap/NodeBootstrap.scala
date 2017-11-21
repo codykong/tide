@@ -95,11 +95,15 @@ object NodeBootstrap {
       }
     }
 
+
+
     // parse the CLI arguments
     val cliConfig = parser.parse(args, new NodeManagerCliOptions()).getOrElse {
       throw new Exception(
         s"Invalid command line arguments: ${args.mkString(" ")}. Usage: ${parser.usage}")
     }
+
+    LogConfigLoader.loadLogFile(ConfigConstants.TIDE_LOG_CONF_FILENAME,cliConfig.getConfigDir);
 
     // load the configuration
     val conf: Configuration = try {

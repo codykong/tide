@@ -16,12 +16,14 @@ import org.slf4j.LoggerFactory
   */
 object MasterBootstrap {
 
-  val LOG = LoggerFactory.getLogger(MasterBootstrap.getClass)
+  private final val LOG = LoggerFactory.getLogger(MasterBootstrap.getClass)
 
   val STARTUP_FAILURE_RETURN_CODE = 1
   val RUNTIME_FAILURE_RETURN_CODE = 2
 
   def main(args: Array[String]): Unit = {
+
+    LogConfigLoader
 
     LOG.info("MasterBootstrap start")
 
@@ -91,6 +93,9 @@ object MasterBootstrap {
     if (configDir == null) {
       throw new Exception("Missing parameter '--configDir'")
     }
+
+    LogConfigLoader.loadLogFile(ConfigConstants.TIDE_LOG_CONF_FILENAME,configDir);
+
     if (cliOptions.getAppManagerMode() == null) {
       throw new Exception("Missing parameter '--executionMode'")
     }
